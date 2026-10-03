@@ -259,9 +259,61 @@ would show up in the training curve.
 
 ## 4. Step order
 
-*Not decided yet. The task says the episode ends when the robot "enters the cow's cell" and
-does not say what happens when the cow walks into the robot. Those are different events and I
-have to pick one.*
+The task gives the environment defaults and adds "you may change them if you explain why"
+(p.6). Of the three decisions below, one is a change I am making and two are gaps the spec
+never fills. Keeping those apart matters -- a change needs defending, a gap just needs a
+choice.
+
+![one step, and which parts the task left open](figures/step_order.png)
+
+### A cow that walks into the robot also ends the episode (a change)
+
+The spec ends the episode when the robot "enters the cow's cell". Read literally, the cow can
+walk onto the robot and nothing happens.
+
+I could not keep that. If only the robot can cause a collision, standing still next to the cow
+is free, and the best policy is to park beside it and wait for a clear line to the goal. That
+is the opposite of what the title of the task asks for, and it also contradicts the reward:
+there is a -3 for being in the 8 cells around the cow, which only makes sense if being there
+is dangerous. Charging a penalty for a risk that cannot materialize is incoherent.
+
+So both directions end the episode. This is the one place I am departing from the written
+spec.
+
+### Robot moves first, then the cow (a gap)
+
+Nothing in the spec says who goes first, and the choice changes the problem.
+
+I went with the robot. It picks its action from the observation it was handed at the start of
+the step, which is how a control loop actually runs -- sensors read, policy decides, actuator
+commits, and only then does the world move on. Letting the cow go first would hand the robot
+information that arrives after it has already acted.
+
+My first draft of this section claimed that a robot standing next to the cow can be hit no
+matter what it does. I checked it rather than leaving it as an assertion, and it is false. The
+robot has five destinations counting `stay`, the cow covers five cells after its own move, and
+for every one of the robot's options to be covered the two plus-shapes would have to coincide,
+which needs the robot and the cow in the same cell -- already a collision. Sweeping all 420
+adjacent configurations, **none has zero safe actions**; the worst, in a corner, leaves one.
+
+So collisions next to the cow are avoidable in principle, and the ceiling really is 100%. What
+is not free is finding that escape. The safe action is sometimes a single specific move out of
+five, it depends on where the cow happens to be, and it is often the move that points away
+from the goal. A greedy rule that only avoids cells adjacent to the cow's *current* position
+is not computing this, which is one concrete thing a learned policy could beat it on.
+
+This also means I should not explain away a shortfall in success rate as unavoidable risk. If
+the agent collides, it had an out and did not take it.
+
+### Swapping places counts as a collision (a gap)
+
+If the robot steps right while the cow steps left into the cell the robot just left, they end
+up in each other's old cells. Neither ever occupies the same cell as the other, so a
+cell-based check sees nothing, but they have passed through each other.
+
+I count it. The alternative is a renderer that occasionally shows the robot walking through
+the cow, and an agent that can learn to exploit it.
+
 
 ## 5. Evaluation
 

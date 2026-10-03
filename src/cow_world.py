@@ -84,3 +84,49 @@ class CowWorld(gym.Env):
         self.cow = self.cow_start
         self.steps = 0
         return self._obs(), self._info()
+
+    def step(self, action: int):
+        """One control step, in the order argued for in docs/formulation.md sec 4.
+
+        The robot commits on the observation it was handed, then the world moves.
+        That is why a robot already next to the cow can be hit whatever it does.
+        """
+        assert self.action_space.contains(action), f"bad action {action}"
+        self.steps += 1
+        reward = R_STEP
+        robot_was = self.robot
+
+        self.robot = self._bounded(self.robot, MOVES[action])
+
+        if self.robot == self.goal:
+            return self._end(reward + R_GOAL, "goal")
+        if self.robot == self.cow:
+            return self._end(reward + R_COLLISION, "collision")
+
+        cow_was = self.cow
+        if self.np_random.random() < COW_MOVE_PROB:
+            self.cow = self._bounded(self.cow, MOVES[self.np_random.integers(4)])
+
+        # traded cells, so they went through each other on the way
+        if self.cow == robot_was and self.robot == cow_was:
+            return self._end(reward + R_COLLISION, "collision")
+        if self.cow == self.robot:
+            return self._end(reward + R_COLLISION, "collision")
+
+        if chebyshev(self.robot, self.cow) == 1:
+            reward += R_TOO_CLOSE
+
+        truncated = self.steps >= MAX_STEPS
+        info = {**self._info(), "outcome": "timeout" if truncated else None}
+        return self._obs(), reward, False, truncated, info
+
+    # --- internals ---------------------------------------------------------
+
+    @staticmethod
+    def _bounded(pos: tuple[int, int], move: tuple[int, int]) -> tuple[int, int]:
+        """Walking into a wall leaves you where you were, and still costs a step."""
+        return (min(max(pos[0] + move[0], 0), GRID - 1),
+                min(max(pos[1] + move[1], 0), GRID - 1))
+
+    def _end(self, reward: float, outcome: str):
+        return self._obs(), reward, True, False, {**self._info(), "outcome": outcome}
