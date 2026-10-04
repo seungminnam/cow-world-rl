@@ -1,0 +1,12 @@
+{
+  "tag": "no_step",
+  "clip": 2,
+  "episodes": 30000,
+  "rewards_overridden": {
+    "step": 0.0
+  },
+  "states": 1600,
+  "states_visited": 1083,
+  "mean_return_first_1000": -10.185,
+  "mean_return_last_1000": 17.951
+}

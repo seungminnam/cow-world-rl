@@ -37,6 +37,8 @@ def train(
     eps_decay_frac: float = 0.6,
     seed: int = 0,
     env: CowWorld | None = None,
+    rewards: dict | None = None,
+    cow_bias: float = 0.0,
 ):
     """Returns (q_table, per-episode returns).
 
@@ -48,7 +50,7 @@ def train(
     piling up on the way. At 0.9 it would be 0.18 and stalling starts to look
     like a reasonable idea to the agent.
     """
-    env = env or CowWorld()
+    env = env or CowWorld(rewards=rewards, cow_bias=cow_bias)
     rng = np.random.default_rng(seed)      # seeded, so a training run replays
     q = np.zeros((n_states(clip), len(MOVES)), dtype=np.float64)
     returns = np.zeros(episodes)
@@ -96,10 +98,20 @@ def main():
     ap.add_argument("--episodes", type=int, default=30_000)
     ap.add_argument("--clip", type=int, default=2)
     ap.add_argument("--tag", default="base")
+    ap.add_argument("--cow-bias", type=float, default=0.0,
+                    help="probability the cow heads for the robot instead of wandering")
+    ap.add_argument("--reward", action="append", default=[],
+                    metavar="TERM=VALUE",
+                    help="override a reward term, e.g. --reward step=0")
     args = ap.parse_args()
 
+    rewards = {}
+    for item in args.reward:
+        term, value = item.split("=")
+        rewards[term] = float(value)
+
     RESULTS.mkdir(exist_ok=True)
-    q, returns = train(episodes=args.episodes, clip=args.clip)
+    q, returns = train(episodes=args.episodes, clip=args.clip, rewards=rewards or None, cow_bias=args.cow_bias)
 
     np.save(RESULTS / f"q_{args.tag}.npy", q)
     np.save(RESULTS / f"returns_{args.tag}.npy", returns)
@@ -108,6 +120,8 @@ def main():
         "tag": args.tag,
         "clip": args.clip,
         "episodes": args.episodes,
+        "rewards_overridden": rewards or None,
+        "cow_bias": args.cow_bias,
         "states": n_states(args.clip),
         "states_visited": int((q != 0).any(axis=1).sum()),
         "mean_return_first_1000": round(float(returns[:1000].mean()), 3),

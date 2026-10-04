@@ -436,6 +436,58 @@ sort of thing I would want to measure rather than assume, the way the radius com
 an argument into a number.
 
 
+## 7. Two more experiments
+
+### 7.1 Removing the step penalty
+
+The task suggests changing one reward term and showing what it does. I dropped the -0.1 per
+step and retrained at radius 2. Everything is still scored against the original rewards, since
+the ablation changes what the agent was trained to want, not the yardstick I measure it with.
+
+| policy | success | collision | timeout | steps | steps in ring |
+|---|---|---|---|---|---|
+| Q, full reward | 99.0% | 0.0% | 1.0% | 17.4 | 2.22% |
+| Q, no step penalty | 96.6% | 0.0% | 3.4% | 19.8 | 1.51% |
+
+Without the step penalty there is no cost to taking the long way, so the agent buys more
+caution than the task wants: it spends even less time beside the cow, and pays for it with
+2.4 extra steps and three times the timeouts. The -0.1 is not a detail. It is the term that
+makes safety and speed trade against each other at all, and with it gone the agent optimizes
+one of them alone.
+
+### 7.2 A cow that chases
+
+The harder world the task suggests. The cow now heads for the robot on 70% of the steps it
+moves, closing the larger of the two gaps, instead of picking a direction at random.
+
+| policy | success | collision | timeout | steps | steps in ring |
+|---|---|---|---|---|---|
+| rule-based | 78.4% | 21.6% | 0.0% | 15.7 | 24.04% |
+| Q, trained here, radius 2 | 92.0% | 7.6% | 0.4% | 25.6 | 12.36% |
+| **Q, trained here, radius 3** | **95.0%** | **5.0%** | 0.0% | 19.2 | 8.98% |
+| Q, trained in the easy world | 83.2% | 15.8% | 1.0% | 22.2 | 30.16% |
+
+Three things came out of this, and one of them is the answer to a question I left open in
+section 1.
+
+**The rule falls apart.** 97% to 78.4%, with collisions going from 2.2% to 21.6%. Avoiding the
+cell the cow is standing in works against a cow that wanders. It does not work against one
+that is coming for you.
+
+**Which finally gives the learned policy room.** In the original world it beat the rule by two
+points. Here the gap is 16.6.
+
+**And radius 3 now wins.** This is the reversal I said I would watch for. My reason for
+clipping the state was that a uniformly random cow has no drift to detect, so the position of
+a distant cow carries nothing a policy could use. That reason does not survive a cow with a
+direction, and the numbers follow: radius 3 reaches 95.0% against radius 2's 92.0%, with fewer
+collisions and six fewer steps. The information I was throwing away as worthless became worth
+something the moment the cow acquired an intention.
+
+The last row is the policy from the easy world dropped in here untouched. It manages 83.2%,
+and spends 30% of its steps inside the ring, which is worse than the hand-written rule. It was
+trained against a cow that does not chase and it has no way to notice that the cow now does.
+
 ## References
 
 Sutton, R. S. and Barto, A. G., *Reinforcement Learning: An Introduction*, 2nd edition, 2020.
