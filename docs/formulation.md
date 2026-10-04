@@ -467,8 +467,7 @@ moves, closing the larger of the two gaps, instead of picking a direction at ran
 | **Q, trained here, radius 3** | **95.0%** | **5.0%** | 0.0% | 19.2 | 8.98% |
 | Q, trained in the easy world | 83.2% | 15.8% | 1.0% | 22.2 | 30.16% |
 
-Three things came out of this, and one of them is the answer to a question I left open in
-section 1.
+This is where the question I left open in section 1 finally gets an answer.
 
 **The rule falls apart.** 97% to 78.4%, with collisions going from 2.2% to 21.6%. Avoiding the
 cell the cow is standing in works against a cow that wanders. It does not work against one
