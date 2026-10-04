@@ -1,7 +1,7 @@
 """
 Turning an observation into a Q-table row.
 
-This sits on the agent's side of the line on purpose. The environment reports
+This sits on the agent's side of the line. The environment reports
 where things actually are; deciding that two distant cows are "the same
 situation" is a modeling choice the learner makes, not a fact about the world.
 

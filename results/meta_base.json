@@ -1,0 +1,9 @@
+{
+  "tag": "base",
+  "clip": 2,
+  "episodes": 30000,
+  "states": 1600,
+  "states_visited": 1084,
+  "mean_return_first_1000": -15.467,
+  "mean_return_last_1000": 16.442
+}

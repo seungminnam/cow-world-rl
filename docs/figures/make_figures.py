@@ -179,3 +179,39 @@ ax.set_xlabel("offsets +2 and +4; clipping sends both to +2", fontsize=8.5,
 fig.tight_layout()
 fig.savefig(OUT / "markov_clip_blur.png", dpi=160, bbox_inches="tight")
 print("ok")
+
+# --- Figure 6: one step, and which parts the task left to me ---------------
+fig, ax = plt.subplots(figsize=(7.2, 4.6))
+ax.set_xlim(0, 10); ax.set_ylim(0, 10.4); ax.axis("off")
+
+STEPS = [
+    ("charge the step penalty  −0.1", "spec", None),
+    ("robot moves (walls block it)", "spec", None),
+    ("on the goal?  →  +20, end", "spec", None),
+    ("robot walked onto the cow?  →  −10, end", "spec", None),
+    ("cow moves (p = 0.7)", "spec", None),
+    ("did they swap places?  →  −10, end", "mine", "gap: not in the spec"),
+    ("cow walked onto the robot?  →  −10, end", "change", "change: spec lists only robot → cow"),
+    ("cow within 1 cell?  →  −3", "spec", None),
+    ("60 steps?  →  truncate", "spec", None),
+]
+FILL = {"spec": "#eef1f5", "mine": "#dff0e4", "change": "#fce9e3"}
+EDGE_C = {"spec": "#aab4c0", "mine": "#2e8b57", "change": "#c0603a"}
+
+y = 9.7
+for text, kind, note in STEPS:
+    ax.add_patch(Rectangle((0.3, y - 0.46), 5.5, 0.72, facecolor=FILL[kind],
+                           edgecolor=EDGE_C[kind], lw=1.3, zorder=2))
+    ax.text(0.55, y - 0.12, text, fontsize=8.8, va="center", zorder=3)
+    if note:
+        ax.text(6.05, y - 0.12, note, fontsize=7.6, va="center", color=EDGE_C[kind])
+    if y > 1.4:
+        ax.add_patch(FancyArrowPatch((3.05, y - 0.48), (3.05, y - 0.95),
+                                     arrowstyle="-|>", mutation_scale=8, color="#999", lw=1))
+    y -= 1.02
+
+ax.text(0.3, 10.15, "One step. Robot commits first, then the world moves.",
+        fontsize=10.5, weight="bold")
+fig.tight_layout()
+fig.savefig(OUT / "step_order.png", dpi=160, bbox_inches="tight")
+print("ok")

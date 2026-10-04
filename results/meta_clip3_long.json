@@ -1,0 +1,9 @@
+{
+  "tag": "clip3_long",
+  "clip": 3,
+  "episodes": 60000,
+  "states": 3136,
+  "states_visited": 1857,
+  "mean_return_first_1000": -14.924,
+  "mean_return_last_1000": 17.264
+}

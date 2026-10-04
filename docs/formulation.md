@@ -259,13 +259,136 @@ would show up in the training curve.
 
 ## 4. Step order
 
-*Not decided yet. The task says the episode ends when the robot "enters the cow's cell" and
-does not say what happens when the cow walks into the robot. Those are different events and I
-have to pick one.*
+The task gives the environment defaults and adds "you may change them if you explain why"
+(p.6). Of the three decisions below, one is a change I am making and two are gaps the spec
+never fills. Keeping those apart matters -- a change needs defending, a gap just needs a
+choice.
+
+![one step, and which parts the task left open](figures/step_order.png)
+
+### A cow that walks into the robot also ends the episode (a change)
+
+The spec ends the episode when the robot "enters the cow's cell". Read literally, the cow can
+walk onto the robot and nothing happens.
+
+I could not keep that. If only the robot can cause a collision, standing still next to the cow
+is free, and the best policy is to park beside it and wait for a clear line to the goal. That
+is the opposite of what the title of the task asks for, and it also contradicts the reward:
+there is a -3 for being in the 8 cells around the cow, which only makes sense if being there
+is dangerous. Charging a penalty for a risk that cannot materialize is incoherent.
+
+So both directions end the episode. This is the one place I am departing from the written
+spec.
+
+### Robot moves first, then the cow (a gap)
+
+Nothing in the spec says who goes first, and the choice changes the problem.
+
+I went with the robot. It picks its action from the observation it was handed at the start of
+the step, which is how a control loop actually runs -- sensors read, policy decides, actuator
+commits, and only then does the world move on. Letting the cow go first would hand the robot
+information that arrives after it has already acted.
+
+My first draft of this section claimed that a robot standing next to the cow can be hit no
+matter what it does. I checked it rather than leaving it as an assertion, and it is false. The
+robot has five destinations counting `stay`, the cow covers five cells after its own move, and
+for every one of the robot's options to be covered the two plus-shapes would have to coincide,
+which needs the robot and the cow in the same cell -- already a collision. Sweeping all 420
+adjacent configurations, **none has zero safe actions**; the worst, in a corner, leaves one.
+
+So collisions next to the cow are avoidable in principle, and the ceiling really is 100%. What
+is not free is finding that escape. The safe action is sometimes a single specific move out of
+five, it depends on where the cow happens to be, and it is often the move that points away
+from the goal. A greedy rule that only avoids cells adjacent to the cow's *current* position
+is not computing this, which is one concrete thing a learned policy could beat it on.
+
+This also means I should not explain away a shortfall in success rate as unavoidable risk. If
+the agent collides, it had an out and did not take it.
+
+### Swapping places counts as a collision (a gap)
+
+If the robot steps right while the cow steps left into the cell the robot just left, they end
+up in each other's old cells. Neither ever occupies the same cell as the other, so a
+cell-based check sees nothing, but they have passed through each other.
+
+I count it. The alternative is a renderer that occasionally shows the robot walking through
+the cow, and an agent that can learn to exploit it.
+
 
 ## 5. Evaluation
 
-*Not decided yet.*
+The cow moves on its own, so the same policy produces a different episode every run. Any
+comparison is meaningless unless both policies face the same cow, so every number below comes
+from the same list of seeds, replayed for each policy in turn.
+
+Training walks seeds up from 0. Evaluation starts at 1,000,000, far past anywhere training can
+reach, so a good score cannot just mean the agent had already seen those episodes.
+
+Success rate alone would not tell me much. It cannot separate a policy that keeps its
+distance from one that skims past the cow and gets away with it, which is the safety question
+this task is asking about. The table also carries collision rate, the share of steps spent
+inside the -3 ring, and the closest the robot ever came.
+
+### Results, 500 held-out episodes
+
+| policy | success | collision | timeout | steps to goal | return |
+|---|---|---|---|---|---|
+| random | 1.8% | 38.6% | 59.6% | 52.1 | -15.04 |
+| rule-based | 97.0% | 2.2% | 0.8% | **16.2** | +15.17 |
+| Q-learning, radius 2 | **99.0%** | **0.0%** | 1.0% | 17.4 | +16.86 |
+| Q-learning, radius 3 | 85.0% | 0.0% | 15.0% | 27.3 | +13.61 |
+| Q-learning, radius 3, 60k episodes | 96.8% | 0.0% | 3.2% | 18.2 | **+17.11** |
+
+| policy | steps inside the -3 ring | mean closest approach |
+|---|---|---|
+| rule-based | 4.74% | 2.33 |
+| Q-learning, radius 2 | 2.22% | 2.07 |
+| Q-learning, radius 3 | 0.18% | 3.15 |
+| Q-learning, radius 3, 60k | 0.58% | 2.38 |
+
+### The baseline is already near optimal
+
+97% success at 16.2 steps, against a shortest path of 14. That leaves roughly three points
+for anything else to win, which is less room than I expected when I started.
+
+### Where the learned policy is better
+
+The gain in success rate is two points. The clearer difference is collisions: zero across
+500 episodes, against 2.2% for the rule, paid for with about one extra step per episode.
+
+The second table says how. The learned policy spends less than half as long inside the ring,
+but its closest approach is nearer than the rule's, so it is not simply keeping a wider berth.
+It crosses quickly instead of lingering. The rule holds more average distance and still gets
+caught adjacent more often, because it only avoids cells next to where the cow is standing now
+and has no way to account for where the cow is about to move. That is the weakness I described
+in section 4.
+
+### Checking the prediction from section 3
+
+I wrote down, before running any of this, that the policy should land closer to the Sarsa
+side of Cliff Walking than the Q-learning side -- longer routes and fewer collisions, despite
+the algorithm being Q-learning. Both parts came out that way: 17.4 steps against the rule's
+16.2, and zero collisions against 2.2%.
+
+### Radius 3
+
+I had expected radius 3 to cost something, and it cost more than I thought: 85% success, with
+15% of episodes timing out. The policy became so reluctant to go near the cow that it ran out
+of steps, spending 0.18% of its time in the ring and keeping a mean closest approach of 3.15.
+
+Doubling the episodes to 60,000 pulled it back to 96.8%, which answers what went wrong. The
+deficit was **sample efficiency**, not the representation. 3,136 states spread the same
+experience thinner than 1,600 do, and the agent needs roughly twice the data to approach what
+the narrower radius reaches. It still does not match it.
+
+One thing about this nearly got past me. The training curves for radius 2 and radius 3 at
+30,000 episodes sit almost on top of each other, both plateauing near 16.7, so on training
+return alone radius 3 looks fine. Only the held-out evaluation separates them, and the reason
+is that training return is measured with exploration still switched on, on episodes the agent
+has already seen.
+
+![learning curves](../results/learning_curve.png)
+
 
 ## References
 
