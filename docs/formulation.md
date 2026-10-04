@@ -390,6 +390,52 @@ has already seen.
 ![learning curves](../results/learning_curve.png)
 
 
+## 6. Driving the policy from a photograph
+
+The task offers a perception bridge as an optional extra: run a detector on a real cow photo,
+turn the box into the agent's state, and print the action the policy would choose.
+`src/perception_bridge.py` does that with YOLO26n and the Q-table from radius 2.
+
+On a Pexels photo of a cow filling the frame:
+
+```
+detection      cow, confidence 0.89
+box            (1, 2) to (1031, 844)  -- 99% of frame height
+read as        center, 1 cell(s) away
+agent state    robot (4, 4), cow (5, 4)  ->  index 917
+action         up
+
+  up        0.49
+  down     -6.93
+  left     -0.57
+  right    -0.64
+  stay     -0.60
+```
+
+![the detection and the action it produces](../assets/cow_annotated.jpg)
+
+The action is to move away from the cow, and the five values show why. Stepping toward it is
+worth -6.93, while the three moves that leave the distance at one cell sit together near -0.6
+with almost nothing separating them. So the decision being made is not left versus right, it
+is toward the cow versus everything else, and the distance between those two numbers is the
+-10 the agent learned to avoid. That it survives the trip out of the grid and onto a photo is
+what I wanted to check.
+
+### The conversion in the middle is hand-written
+
+There is nothing principled about the conversion. The agent learned over cells; a camera gives
+a bearing and an apparent size. Nothing in training says how many cells correspond to a box
+filling 99% of the frame, so the thresholds in `perception_bridge.py` are mine. A different
+lens, a different cow, or a cow lying down would need different ones, and the policy has no
+way to tell me that they were wrong.
+
+I take this to be a small version of a general problem. A policy trained in one
+representation cannot take observations from a sensor it never saw unless someone writes the
+conversion, and that conversion is not learned, checked, or visible to the policy. It is the
+sort of thing I would want to measure rather than assume, the way the radius comparison turned
+an argument into a number.
+
+
 ## References
 
 Sutton, R. S. and Barto, A. G., *Reinforcement Learning: An Introduction*, 2nd edition, 2020.

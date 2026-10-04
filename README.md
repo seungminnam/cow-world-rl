@@ -32,6 +32,11 @@ python src/train.py --episodes 60000 --clip 3 --tag clip3_long
 # the checks
 python tests/test_encode.py
 python tests/test_step.py
+
+# optional: drive the policy from a photograph instead of the grid.
+# needs one extra dependency, and downloads the detector weights on first run.
+pip install ultralytics opencv-python
+python src/perception_bridge.py assets/cow.jpg --out assets/cow_annotated.jpg
 ```
 
 Q-tables and training logs land in `results/` and are not committed, since the
@@ -74,6 +79,7 @@ src/encoding.py      observation -> Q-table index, at a chosen radius
 src/policies.py      random, rule-based, and greedy-from-a-table
 src/evaluate.py      shared-seed harness and the results table
 src/train.py         tabular Q-learning
+src/perception_bridge.py  optional: a cow photo -> agent state -> action
 tests/               14 checks, mostly on the rules the task leaves open
 docs/formulation.md  the design decisions, the alternatives dropped, and the results
 ```
