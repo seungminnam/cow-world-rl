@@ -37,9 +37,16 @@ python src/train.py --episodes 30000 --clip 3 --cow-bias 0.7 --tag chase3
 # side-by-side episodes of both policies on the same seeds
 python src/make_gif.py --seeds 1000152 1000355 1000300 --out results/episodes.gif
 
+# every results table in the write-up, regenerated from the saved Q-tables
+python src/experiments.py
+
 # the checks
 python tests/test_encode.py
 python tests/test_step.py
+
+# the Gymnasium contract, using the checker the task points at
+pip install stable-baselines3
+python tests/test_gym_api.py
 
 # optional: drive the policy from a photograph instead of the grid.
 # needs one extra dependency, and downloads the detector weights on first run.
@@ -108,13 +115,28 @@ starts paying. Section 7 of `docs/formulation.md` goes through it.
 src/cow_world.py     the environment: grid, rewards, cow movement, reset/step/render
 src/encoding.py      observation -> Q-table index, at a chosen radius
 src/policies.py      random, rule-based, and greedy-from-a-table
-src/evaluate.py      shared-seed harness and the results table
+src/evaluate.py      shared-seed harness, and the per-policy metrics
 src/train.py         tabular Q-learning
-src/perception_bridge.py  optional: a cow photo -> agent state -> action
-src/make_gif.py      side-by-side episodes of two policies on the same seeds
-tests/               14 checks, mostly on the rules the task leaves open
+src/experiments.py   reruns every results table quoted in the write-up
+tests/               16 checks, mostly on the rules the task leaves open
 docs/formulation.md  the design decisions, the alternatives dropped, and the results
 ```
+
+The three optional challenges:
+
+| challenge | where it lives |
+|---|---|
+| reward design | `train.py --reward step=0`, with the terms injected into `CowWorld(rewards=...)` |
+| harder world | `train.py --cow-bias 0.7`, with the behavior in `CowWorld(cow_bias=...)` |
+| perception bridge | `src/perception_bridge.py` |
+
+Both of the first two are constructor arguments rather than edits to the module
+constants, so an ablation builds a second environment instead of mutating a
+global that every other environment in the process shares. That is also what
+lets `experiments.py` score the ablated policy against the default rewards in
+the same run.
+
+`src/make_gif.py` produces the side-by-side episodes.
 
 ## Notes
 

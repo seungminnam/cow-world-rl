@@ -1,10 +1,14 @@
 """
-Tabular Q-learning, written out rather than pulled from Stable-Baselines3.
+Tabular Q-learning.
 
-The state space is small enough that the whole policy is a table of a few
-thousand numbers. Reaching for a deep RL library here would have put a wrapper
-between me and the one thing this task is about, which is what the agent learns
-and why.
+The task offers two routes here, writing tabular Q-learning yourself or taking
+DQN or PPO from Stable-Baselines3. I took the first. The state space is small
+enough that the whole policy is a table of a few thousand numbers, and a deep RL
+library would have put a wrapper between me and the thing the task is asking
+about, which is what the agent learns and why.
+
+SB3 still earns its place: tests/test_gym_api.py runs its env_checker against
+the environment.
 
     Q(s,a) <- Q(s,a) + alpha * [ r + gamma * max_a' Q(s',a') - Q(s,a) ]
 
