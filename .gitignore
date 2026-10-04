@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Q-tables and training logs. The task asks not to commit model weights, and
+# `python src/train.py` regenerates them in about eight seconds.
+results/*.npy

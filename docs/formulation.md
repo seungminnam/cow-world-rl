@@ -317,7 +317,78 @@ the cow, and an agent that can learn to exploit it.
 
 ## 5. Evaluation
 
-*Not decided yet.*
+The cow moves on its own, so the same policy produces a different episode every run. Any
+comparison is meaningless unless both policies face the same cow, so every number below comes
+from the same list of seeds, replayed for each policy in turn.
+
+Training walks seeds up from 0. Evaluation starts at 1,000,000, far past anywhere training can
+reach, so a good score cannot just mean the agent had already seen those episodes.
+
+Success rate alone would not tell me much. It cannot separate a policy that keeps its
+distance from one that skims past the cow and gets away with it, which is the safety question
+this task is asking about. The table also carries collision rate, the share of steps spent
+inside the -3 ring, and the closest the robot ever came.
+
+### Results, 500 held-out episodes
+
+| policy | success | collision | timeout | steps to goal | return |
+|---|---|---|---|---|---|
+| random | 1.8% | 38.6% | 59.6% | 52.1 | -15.04 |
+| rule-based | 97.0% | 2.2% | 0.8% | **16.2** | +15.17 |
+| Q-learning, radius 2 | **99.0%** | **0.0%** | 1.0% | 17.4 | +16.86 |
+| Q-learning, radius 3 | 85.0% | 0.0% | 15.0% | 27.3 | +13.61 |
+| Q-learning, radius 3, 60k episodes | 96.8% | 0.0% | 3.2% | 18.2 | **+17.11** |
+
+| policy | steps inside the -3 ring | mean closest approach |
+|---|---|---|
+| rule-based | 4.74% | 2.33 |
+| Q-learning, radius 2 | 2.22% | 2.07 |
+| Q-learning, radius 3 | 0.18% | 3.15 |
+| Q-learning, radius 3, 60k | 0.58% | 2.38 |
+
+### The baseline is already near optimal
+
+97% success at 16.2 steps, against a shortest path of 14. That leaves roughly three points
+for anything else to win, which is less room than I expected when I started.
+
+### Where the learned policy is better
+
+The gain in success rate is two points. The clearer difference is collisions: zero across
+500 episodes, against 2.2% for the rule, paid for with about one extra step per episode.
+
+The second table says how. The learned policy spends less than half as long inside the ring,
+but its closest approach is nearer than the rule's, so it is not simply keeping a wider berth.
+It crosses quickly instead of lingering. The rule holds more average distance and still gets
+caught adjacent more often, because it only avoids cells next to where the cow is standing now
+and has no way to account for where the cow is about to move. That is the weakness I described
+in section 4.
+
+### Checking the prediction from section 3
+
+I wrote down, before running any of this, that the policy should land closer to the Sarsa
+side of Cliff Walking than the Q-learning side -- longer routes and fewer collisions, despite
+the algorithm being Q-learning. Both parts came out that way: 17.4 steps against the rule's
+16.2, and zero collisions against 2.2%.
+
+### Radius 3
+
+I had expected radius 3 to cost something, and it cost more than I thought: 85% success, with
+15% of episodes timing out. The policy became so reluctant to go near the cow that it ran out
+of steps, spending 0.18% of its time in the ring and keeping a mean closest approach of 3.15.
+
+Doubling the episodes to 60,000 pulled it back to 96.8%, which answers what went wrong. The
+deficit was **sample efficiency**, not the representation. 3,136 states spread the same
+experience thinner than 1,600 do, and the agent needs roughly twice the data to approach what
+the narrower radius reaches. It still does not match it.
+
+One thing about this nearly got past me. The training curves for radius 2 and radius 3 at
+30,000 episodes sit almost on top of each other, both plateauing near 16.7, so on training
+return alone radius 3 looks fine. Only the held-out evaluation separates them, and the reason
+is that training return is measured with exploration still switched on, on episodes the agent
+has already seen.
+
+![learning curves](../results/learning_curve.png)
+
 
 ## References
 
