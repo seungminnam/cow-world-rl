@@ -44,8 +44,25 @@ class CowWorld(gym.Env):
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode: str | None = None):
+    def __init__(self, render_mode: str | None = None, rewards: dict | None = None,
+                 cow_bias: float = 0.0):
         super().__init__()
+
+        # Passed in rather than read from the module constants, so an ablation
+        # can build a second environment instead of mutating a global that
+        # every other environment in the process shares.
+        self.r = {"goal": R_GOAL, "collision": R_COLLISION,
+                  "too_close": R_TOO_CLOSE, "step": R_STEP}
+        if rewards:
+            unknown = set(rewards) - set(self.r)
+            assert not unknown, f"unknown reward terms: {unknown}"
+            self.r.update(rewards)
+
+        # 0.0 is the task default: the cow wanders. Above that, it heads for the
+        # robot with this probability, which is the "harder world" the task
+        # suggests and which breaks the reason I gave for clipping the state.
+        assert 0.0 <= cow_bias <= 1.0
+        self.cow_bias = cow_bias
 
         # whatever reset() and step() return has to fit these
         self.observation_space = spaces.MultiDiscrete([GRID, GRID, GRID, GRID])
@@ -94,34 +111,46 @@ class CowWorld(gym.Env):
         """
         assert self.action_space.contains(action), f"bad action {action}"
         self.steps += 1
-        reward = R_STEP
+        reward = self.r["step"]
         robot_was = self.robot
 
         self.robot = self._bounded(self.robot, MOVES[action])
 
         if self.robot == self.goal:
-            return self._end(reward + R_GOAL, "goal")
+            return self._end(reward + self.r["goal"], "goal")
         if self.robot == self.cow:
-            return self._end(reward + R_COLLISION, "collision")
+            return self._end(reward + self.r["collision"], "collision")
 
         cow_was = self.cow
         if self.np_random.random() < COW_MOVE_PROB:
-            self.cow = self._bounded(self.cow, MOVES[self.np_random.integers(4)])
+            self.cow = self._bounded(self.cow, self._cow_move())
 
         # traded cells, so they went through each other on the way
         if self.cow == robot_was and self.robot == cow_was:
-            return self._end(reward + R_COLLISION, "collision")
+            return self._end(reward + self.r["collision"], "collision")
         if self.cow == self.robot:
-            return self._end(reward + R_COLLISION, "collision")
+            return self._end(reward + self.r["collision"], "collision")
 
         if chebyshev(self.robot, self.cow) == 1:
-            reward += R_TOO_CLOSE
+            reward += self.r["too_close"]
 
         truncated = self.steps >= MAX_STEPS
         info = {**self._info(), "outcome": "timeout" if truncated else None}
         return self._obs(), reward, False, truncated, info
 
     # --- internals ---------------------------------------------------------
+
+    def _cow_move(self) -> tuple[int, int]:
+        """Uniform among the four directions, unless the cow is biased toward
+        the robot, in which case it closes the larger of the two gaps."""
+        if self.cow_bias and self.np_random.random() < self.cow_bias:
+            dr = self.robot[0] - self.cow[0]
+            dc = self.robot[1] - self.cow[1]
+            if abs(dr) >= abs(dc) and dr != 0:
+                return (1, 0) if dr > 0 else (-1, 0)
+            if dc != 0:
+                return (0, 1) if dc > 0 else (0, -1)
+        return MOVES[self.np_random.integers(4)]
 
     @staticmethod
     def _bounded(pos: tuple[int, int], move: tuple[int, int]) -> tuple[int, int]:

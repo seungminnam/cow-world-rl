@@ -6,3 +6,6 @@ __pycache__/
 # Q-tables and training logs. The task asks not to commit model weights, and
 # `python src/train.py` regenerates them in about eight seconds.
 results/*.npy
+
+# Detector weights, downloaded on first run by ultralytics.
+yolo26n.pt

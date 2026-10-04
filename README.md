@@ -29,9 +29,22 @@ python src/train.py --episodes 30000 --clip 2 --tag base
 python src/train.py --episodes 30000 --clip 3 --tag clip3
 python src/train.py --episodes 60000 --clip 3 --tag clip3_long
 
+# reward ablation, and the harder world where the cow chases
+python src/train.py --episodes 30000 --clip 2 --tag no_step --reward step=0
+python src/train.py --episodes 30000 --clip 2 --cow-bias 0.7 --tag chase2
+python src/train.py --episodes 30000 --clip 3 --cow-bias 0.7 --tag chase3
+
+# side-by-side episodes of both policies on the same seeds
+python src/make_gif.py --seeds 1000152 1000355 1000300 --out results/episodes.gif
+
 # the checks
 python tests/test_encode.py
 python tests/test_step.py
+
+# optional: drive the policy from a photograph instead of the grid.
+# needs one extra dependency, and downloads the detector weights on first run.
+pip install ultralytics opencv-python
+python src/perception_bridge.py assets/cow.jpg --out assets/cow_annotated.jpg
 ```
 
 Q-tables and training logs land in `results/` and are not committed, since the
@@ -66,6 +79,29 @@ nearer to it, so it is crossing quickly rather than keeping a wider berth.
 
 ![learning curves](results/learning_curve.png)
 
+Both panels below run the same seed, so the cow does the same thing in each and
+any difference is the robot.
+
+![episodes](results/episodes.gif)
+
+### The harder world
+
+With the cow chasing the robot on 70% of its moves, the hand-written rule drops
+to 78.4% and collides on 21.6% of episodes, which finally leaves the learned
+policy somewhere to win.
+
+| policy | success | collision | steps | steps in ring |
+|---|---|---|---|---|
+| rule-based | 78.4% | 21.6% | 15.7 | 24.04% |
+| Q, radius 2 | 92.0% | 7.6% | 25.6 | 12.36% |
+| **Q, radius 3** | **95.0%** | **5.0%** | 19.2 | 8.98% |
+| Q, trained in the easy world | 83.2% | 15.8% | 22.2 | 30.16% |
+
+Radius 3 wins here and loses in the original world. Clipping the state was
+justified by the cow being uniformly random, so a distant cow's position
+predicted nothing. A cow with a direction breaks that, and the wider radius
+starts paying. Section 7 of `docs/formulation.md` goes through it.
+
 ## Layout
 
 ```
@@ -74,6 +110,8 @@ src/encoding.py      observation -> Q-table index, at a chosen radius
 src/policies.py      random, rule-based, and greedy-from-a-table
 src/evaluate.py      shared-seed harness and the results table
 src/train.py         tabular Q-learning
+src/perception_bridge.py  optional: a cow photo -> agent state -> action
+src/make_gif.py      side-by-side episodes of two policies on the same seeds
 tests/               14 checks, mostly on the rules the task leaves open
 docs/formulation.md  the design decisions, the alternatives dropped, and the results
 ```
